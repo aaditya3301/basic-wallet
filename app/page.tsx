@@ -64,7 +64,7 @@ export default function Home() {
 
       setWallets([...wallets, newWallet]);
       setMnemonic(mnemonicToUse);
-    } catch (error) {
+    } catch {
       // Silent fail
     }
   };
@@ -87,7 +87,7 @@ export default function Home() {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch (err) {
+    } catch {
       // Silent fail
     }
   };
@@ -115,7 +115,7 @@ export default function Home() {
         return balanceInEth.toFixed(6);
       }
       return "0.000000";
-    } catch (error) {
+    } catch {
       return "Error";
     }
   };
@@ -143,7 +143,7 @@ export default function Home() {
         return balanceInSol.toFixed(6);
       }
       return "0.000000";
-    } catch (error) {
+    } catch {
       return "Error";
     }
   };
@@ -165,7 +165,7 @@ export default function Home() {
           ? { ...w, ethereumBalance: ethBalance, solanaBalance: solBalance }
           : w
       ));
-    } catch (error) {
+    } catch {
       // Silent fail
     } finally {
       setLoadingBalances(prev => ({ ...prev, [walletId]: false }));
@@ -178,7 +178,7 @@ export default function Home() {
         {/* Header */}
         <div className="flex items-center justify-between mb-12">
           <div className="flex items-center gap-3">
-            <span className="text-2xl font-bold">Aaditya's Wallet</span>
+            <span className="text-2xl font-bold">Aaditya&apos;s Wallet</span>
           </div>
           
           <div className="flex items-center gap-2">
