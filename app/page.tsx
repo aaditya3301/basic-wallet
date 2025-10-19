@@ -12,6 +12,8 @@ interface Wallet {
   solanaAddress: string;
   ethereumAddress: string;
   privateKey: string;
+  solanaBalance?: string;
+  ethereumBalance?: string;
 }
 
 export default function Home() {
@@ -21,6 +23,7 @@ export default function Home() {
   const [isDark, setIsDark] = useState<boolean>(true);
   const [showPrivateKey, setShowPrivateKey] = useState<{ [key: number]: boolean }>({});
   const [showMnemonic, setShowMnemonic] = useState<boolean>(false);
+  const [loadingBalances, setLoadingBalances] = useState<{ [key: number]: boolean }>({});
 
   const generateSecretPhrase = () => {
     const newMnemonic = generateMnemonic();
@@ -86,6 +89,86 @@ export default function Home() {
       await navigator.clipboard.writeText(text);
     } catch (err) {
       // Silent fail
+    }
+  };
+
+  const fetchEthereumBalance = async (address: string): Promise<string> => {
+    try {
+      const response = await fetch("https://eth-mainnet.g.alchemy.com/v2/7ge-LLlsWzPMtoQ4Ab_ue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: "1",
+          method: "eth_getBalance",
+          params: [address, "latest"]
+        })
+      });
+
+      const data = await response.json();
+      if (data.result) {
+        // Convert from wei to ETH
+        const balanceInWei = BigInt(data.result);
+        const balanceInEth = Number(balanceInWei) / Math.pow(10, 18);
+        return balanceInEth.toFixed(6);
+      }
+      return "0.000000";
+    } catch (error) {
+      return "Error";
+    }
+  };
+
+  const fetchSolanaBalance = async (address: string): Promise<string> => {
+    try {
+      const response = await fetch("https://solana-mainnet.g.alchemy.com/v2/7ge-LLlsWzPMtoQ4Ab_ue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: "1",
+          method: "getBalance",
+          params: [address]
+        })
+      });
+
+      const data = await response.json();
+      if (data.result && data.result.value !== undefined) {
+        // Convert from lamports to SOL
+        const balanceInLamports = data.result.value;
+        const balanceInSol = balanceInLamports / Math.pow(10, 9);
+        return balanceInSol.toFixed(6);
+      }
+      return "0.000000";
+    } catch (error) {
+      return "Error";
+    }
+  };
+
+  const fetchWalletBalances = async (walletId: number) => {
+    const wallet = wallets.find(w => w.id === walletId);
+    if (!wallet) return;
+
+    setLoadingBalances(prev => ({ ...prev, [walletId]: true }));
+
+    try {
+      const [ethBalance, solBalance] = await Promise.all([
+        fetchEthereumBalance(wallet.ethereumAddress),
+        fetchSolanaBalance(wallet.solanaAddress)
+      ]);
+
+      setWallets(prev => prev.map(w => 
+        w.id === walletId 
+          ? { ...w, ethereumBalance: ethBalance, solanaBalance: solBalance }
+          : w
+      ));
+    } catch (error) {
+      // Silent fail
+    } finally {
+      setLoadingBalances(prev => ({ ...prev, [walletId]: false }));
     }
   };
 
@@ -194,9 +277,18 @@ export default function Home() {
                   <div key={wallet.id} className="border border-gray-700 rounded-lg">
                     <div className="flex items-center justify-between p-4 border-b border-gray-700">
                       <h3 className="text-lg font-medium">Wallet {wallet.id}</h3>
-                      <button className="text-red-500 hover:text-red-400">
-                        🗑️
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => fetchWalletBalances(wallet.id)}
+                          disabled={loadingBalances[wallet.id]}
+                          className="bg-blue-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        >
+                          {loadingBalances[wallet.id] ? "Loading..." : "Refresh"}
+                        </button>
+                        <button className="text-red-500 hover:text-red-400">
+                          🗑️
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="p-4 space-y-4">
@@ -213,6 +305,12 @@ export default function Home() {
                         <div className="font-mono text-sm bg-gray-900 p-3 rounded border border-gray-700 break-all">
                           {wallet.solanaAddress}
                         </div>
+                        <div className="mt-2 text-sm">
+                          <span className="text-gray-400">Balance: </span>
+                          <span className="text-green-400 font-medium">
+                            {wallet.solanaBalance !== undefined ? `${wallet.solanaBalance} SOL` : "Click refresh to fetch"}
+                          </span>
+                        </div>
                       </div>
 
                       <div>
@@ -227,6 +325,12 @@ export default function Home() {
                         </div>
                         <div className="font-mono text-sm bg-gray-900 p-3 rounded border border-gray-700 break-all">
                           {wallet.ethereumAddress}
+                        </div>
+                        <div className="mt-2 text-sm">
+                          <span className="text-gray-400">Balance: </span>
+                          <span className="text-blue-400 font-medium">
+                            {wallet.ethereumBalance !== undefined ? `${wallet.ethereumBalance} ETH` : "Click refresh to fetch"}
+                          </span>
                         </div>
                       </div>
 
